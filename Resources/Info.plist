@@ -6,13 +6,14 @@
     <key>CFBundleIdentifier</key><string>local.2bit.SSHConfigEditor</string>
     <key>CFBundleExecutable</key><string>SSHConfigEditor</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.0.1</string>
-    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleShortVersionString</key><string>0.0.2</string>
+    <key>CFBundleVersion</key><string>2</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
-    <key>CFBundleDevelopmentRegion</key><string>ja</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key><array><string>en</string></array>
     <key>UTExportedTypeDeclarations</key><array><dict>
         <key>UTTypeIdentifier</key><string>local.2bit.SSHConfigEditor.host-block</string>
         <key>UTTypeDescription</key><string>SSH Host block</string>

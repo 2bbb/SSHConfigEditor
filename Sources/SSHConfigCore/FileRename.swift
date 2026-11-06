@@ -17,20 +17,20 @@ public struct FileRenamePlan: Sendable {
         let components = newName.components(separatedBy: "/")
         guard components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && !$0.hasPrefix(".") }),
               !newName.contains(where: { "\\\n\r\0*?[%".contains($0) }), !newName.contains("${") else {
-            throw ConfigError("ファイル名、または hoge/bar のような相対パスを入力してください。空の名前・..・ワイルドカードは使えません。")
+            throw ConfigError("Enter a filename or a relative path such as folder/file. Empty names, .., and wildcards are not allowed.")
         }
         let source = source.standardizedFileURL
         let destination = source.deletingLastPathComponent().appendingPathComponent(newName).standardizedFileURL
-        guard source != destination else { throw ConfigError("現在と異なる名前を入力してください。") }
+        guard source != destination else { throw ConfigError("Enter a different name.") }
         guard source.resolvingSymlinksInPath() == source else {
-            throw ConfigError("シンボリックリンク経由のファイル名変更には対応していません。実体のファイルを開いてください。")
+            throw ConfigError("Renaming through symbolic links is not supported. Open the actual file instead.")
         }
         guard destination.resolvingSymlinksInPath() == destination else {
-            throw ConfigError("シンボリックリンクを経由する移動先には対応していません。")
+            throw ConfigError("Destinations reached through symbolic links are not supported.")
         }
         guard !FileManager.default.fileExists(atPath: destination.path),
               (try? FileManager.default.destinationOfSymbolicLink(atPath: destination.path)) == nil else {
-            throw ConfigError("同じ名前のファイルがすでにあります。")
+            throw ConfigError("A file with that name already exists.")
         }
         let resolver = IncludeGraph(baseDirectory: baseDirectory)
         var rewrites: [IncludeRewrite] = []
@@ -39,12 +39,12 @@ public struct FileRenamePlan: Sendable {
             var changed: [Int] = []
             for (lineNumber, line) in rows.enumerated() {
                 guard let d = Directive.parse(line), d.key == "include" else { continue }
-                guard !d.malformed else { throw ConfigError("\(url.lastPathComponent): Includeの引用符を先に修正してください。") }
+                guard !d.malformed else { throw ConfigError("\(url.lastPathComponent): Fix the quotation marks in Include before renaming.") }
                 var replacements: [(Range<String.Index>, String)] = []
                 for (index, argument) in d.arguments.enumerated() {
                     let matches: [URL]
                     do { matches = try resolver.expand(argument, pendingFiles: [source]) }
-                    catch { throw ConfigError("\(url.lastPathComponent) 行\(lineNumber + 1): 参照を確定できないため変更を中止します。\n\(error.localizedDescription)") }
+                    catch { throw ConfigError("\(url.lastPathComponent), line \(lineNumber + 1): Cannot resolve the reference. Rename cancelled.\n\(error.localizedDescription)") }
                     guard matches.contains(where: { $0.standardizedFileURL == source }) else { continue }
                     let isGlob = argument.contains(where: { "*?[".contains($0) })
                     let quotedDestination = Self.quote(destination.path)
@@ -82,14 +82,14 @@ public struct FileRenamePlan: Sendable {
         var originals: [URL: FileSnapshot] = [:]
         for url in affected {
             guard let snapshot = snapshots.first(where: { $0.url.standardizedFileURL == url }), snapshot.original != nil else {
-                throw ConfigError("変更前にすべてのファイルを保存してください。")
+                throw ConfigError("Save all files before renaming.")
             }
             try snapshot.verifyUnchanged()
             originals[url] = snapshot
         }
         for rewrite in rewrites {
             guard originals[rewrite.url.standardizedFileURL]?.original == Data(rewrite.before.utf8) else {
-                throw ConfigError("参照元が更新されています。変更内容を再確認してください。")
+                throw ConfigError("A referencing file has changed. Review the changes again.")
             }
         }
         let fm = FileManager.default
@@ -112,7 +112,7 @@ public struct FileRenamePlan: Sendable {
             for rewrite in rewrites {
                 let original = originals[rewrite.url.standardizedFileURL]!
                 var snapshot = rewrite.url.standardizedFileURL == source ? try FileSnapshot.load(destination).0 : original
-                guard snapshot.original == original.original else { throw ConfigError("名前変更中に内容が変更されました。") }
+                guard snapshot.original == original.original else { throw ConfigError("The file contents changed during the rename.") }
                 try snapshot.save(rewrite.after, backupRoot: backupRoot)
                 completed.append((snapshot, rewrite.before))
             }
@@ -125,8 +125,8 @@ public struct FileRenamePlan: Sendable {
             }
             do { try fm.moveItem(at: destination, to: source) }
             catch { rollbackErrors.append(error.localizedDescription) }
-            if rollbackErrors.isEmpty { throw ConfigError("名前変更を取り消しました。\n\(error.localizedDescription)") }
-            throw ConfigError("名前変更の復元が一部未完了です。バックアップを確認してください。\n\(error.localizedDescription)\n\(rollbackErrors.joined(separator: "\n"))")
+            if rollbackErrors.isEmpty { throw ConfigError("Rename rolled back.\n\(error.localizedDescription)") }
+            throw ConfigError("Rename rollback is incomplete. Check the backups.\n\(error.localizedDescription)\n\(rollbackErrors.joined(separator: "\n"))")
         }
     }
 }

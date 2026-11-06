@@ -7,7 +7,7 @@ struct SSHConfigEditorApp: App {
     @State private var workspace = Workspace()
 
     var body: some Scene {
-        Window("SSH設定", id: "editor") {
+        Window("SSH Settings", id: "editor") {
             ContentView(workspace: workspace)
                 .frame(minWidth: 980, minHeight: 620)
                 .background(WindowGuard(workspace: workspace))
@@ -20,16 +20,16 @@ struct SSHConfigEditorApp: App {
         .defaultSize(width: 1240, height: 780)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("設定を開く…", action: workspace.openConfig).keyboardShortcut("o")
-                Button("~/.ssh/config を開く", action: workspace.openDefault)
+                Button("Open Configuration…", action: workspace.openConfig).keyboardShortcut("o")
+                Button("Open ~/.ssh/config", action: workspace.openDefault)
                 Divider()
-                Button("Hostを追加", action: workspace.addHost).keyboardShortcut("n")
-                Button("設定ファイルを追加…", action: workspace.addFragment).keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("Add Host", action: workspace.addHost).keyboardShortcut("n")
+                Button("Add Configuration File…", action: workspace.addFragment).keyboardShortcut("n", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .saveItem) {
-                Button("すべて保存") { workspace.saveAll() }.keyboardShortcut("s").disabled(workspace.dirtyFiles.isEmpty)
-                Button("変更を確認…") { workspace.showChanges = true }.disabled(workspace.dirtyFiles.isEmpty)
-                Button("ディスクから再読み込み", action: workspace.reloadFromDisk).keyboardShortcut("r")
+                Button("Save All") { workspace.saveAll() }.keyboardShortcut("s").disabled(workspace.dirtyFiles.isEmpty)
+                Button("Review Changes…") { workspace.showChanges = true }.disabled(workspace.dirtyFiles.isEmpty)
+                Button("Reload from Disk", action: workspace.reloadFromDisk).keyboardShortcut("r")
             }
         }
     }

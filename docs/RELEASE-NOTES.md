@@ -1,12 +1,15 @@
-macOS 14以降。Apple Silicon / Intel対応のUniversalアプリです。
+## Changes
 
-- `~/.ssh/config`、Include、conf.dの階層表示と編集
-- ファイル名変更、ディレクトリ作成、読み込み元Includeの更新
-- Hostをファイル間へドラッグして移動。ホバーで挿入位置を表示
-- 保存前の差分確認、外部変更の検出、バックアップ
+- Use English throughout the interface, menus, dialogs, status messages, and diagnostics.
+- Set English as the app's default language.
+- Make README.md the English entry point and retain README_ja.md as the Japanese guide.
 
-ZIPを展開し、SSHConfigEditor.appをApplicationsへ移動してください。
+## Download
 
-**Developer ID署名済み・未公証です。** 初回起動はmacOSにブロックされる場合があります。入手元と署名を確認したうえで、システム設定 → プライバシーとセキュリティの「このまま開く」から許可してください。SHA-256は同梱の `.sha256` ファイルで確認できます。
+Requires macOS 14 or later. The Universal app supports Apple Silicon and Intel.
 
-公証・Gatekeeperによる通常起動の保証、およびIntel実機での動作確認は未実施です。設定の優先順位はHostの順序やIncludeの展開順に依存するため、移動・名前変更後は保存前に差分を確認してください。
+Extract the ZIP and move SSHConfigEditor.app to Applications. The app edits SSH configuration files, follows Include references, updates references when renaming files, and moves Host blocks between files using drag and drop.
+
+**Developer ID signed; not notarized.** macOS may block the first launch. After verifying the download source and signature, allow the app in **System Settings → Privacy & Security → Open Anyway**. Verify the ZIP using the accompanying `.sha256` file.
+
+Notarization, normal Gatekeeper acceptance, Intel hardware, and macOS 14 hardware have not been verified. Host and Include order affect configuration precedence; review changes before saving after a move or rename.

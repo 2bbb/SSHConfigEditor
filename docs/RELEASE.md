@@ -1,61 +1,67 @@
-# 配布手順
+# Release guide
 
-GitHub: https://github.com/2bbb/SSHConfigEditor
+Repository: https://github.com/2bbb/SSHConfigEditor
 
-## 配布契約
+## Distribution
 
-- ZIP内に `SSHConfigEditor.app` 1個。macOS 14以降、arm64 / x86_64 Universal。
-- `Developer ID Application: ISHII 2BIT PROGRAM OFFICE (RS3AQSY9YN)` で署名。Hardened Runtime・タイムスタンプあり。追加entitlements・同梱helper・外部frameworkなし。
-- 2026-11-06のユーザー指定により、当面はDeveloper ID署名のみで公開。公証・stapleは未実施。Gatekeeperが初回起動を拒否しうるため、Releaseに明記。
-- アプリのバージョンは `Resources/Info.plist` の `CFBundleShortVersionString` を正とし、正式タグは `v<version>` と一致させる。
+- Each ZIP contains one `SSHConfigEditor.app`, targeting macOS 14 or later with arm64 and x86_64 binaries.
+- The app is signed with `Developer ID Application: ISHII 2BIT PROGRAM OFFICE (RS3AQSY9YN)`, with Hardened Runtime and a secure timestamp. It has no extra entitlements, bundled helpers, or external frameworks.
+- Releases are intentionally **not notarized**, as requested on 2026-11-06. Gatekeeper may block the first launch; the release notes explain this limitation.
+- `CFBundleShortVersionString` in `Resources/Info.plist` is the version source of truth. Stable tags must match `v<version>`. Increment `CFBundleVersion` for each release.
 
 ## GitHub Actions
 
-`.github/workflows/macos.yml` はmacOS 15 / Xcode 26.3で実行する。
+`.github/workflows/macos.yml` runs on macOS 15 with Xcode 26.3.
 
-| トリガー | 結果 |
+| Trigger | Result |
 | --- | --- |
-| Pull Request | テスト・Universalビルド。署名用Secretsなし |
-| mainへのpush / mainの手動実行 | 検証後、Developer IDで再ビルドし `latest` prereleaseを更新 |
-| `v*` タグpush | 検証後、同名の正式Releaseを作成 |
+| Pull request | Tests and Universal build, without signing secrets |
+| Push to main / manual run on main | Validation, Developer ID build, and an updated `latest` prerelease |
+| `v*` tag push | Validation and a stable release matching the tag |
 
-`latest` は移動するタグで、正式版のGitHub `/releases/latest` とは異なる。正式版はタグと同名のZIPを保持し、既存Releaseを上書きしない。
+`latest` is a moving development tag, distinct from GitHub's `/releases/latest` URL for the newest stable release. Stable releases keep their versioned ZIPs and are never overwritten by CI.
 
-必要なRepository Actions Secrets:
+Required repository Actions secrets:
 
-- `MACOS_CERTIFICATE_P12_BASE64`：対象Developer IDと秘密鍵だけを含む、パスワード付きPKCS#12のBase64
-- `MACOS_CERTIFICATE_PASSWORD`：そのエクスポートパスワード
+- `MACOS_CERTIFICATE_P12_BASE64`: Base64-encoded, password-protected PKCS#12 containing only the selected Developer ID certificate and private key.
+- `MACOS_CERTIFICATE_PASSWORD`: The export password.
 
-SecretsをPRへ渡さず、公開jobのみ `contents: write` を持つ。証明書は使い捨てkeychainへ取り込み、終了時に削除する。保護対象の秘密鍵、証明書、パスワードをリポジトリに保存しない。
+Pull requests receive no signing secrets. Only the release job has `contents: write`. The certificate is imported into a temporary keychain and removed at the end of the job. Never commit certificates, private keys, or passwords.
 
-## バージョン公開
+## Publish a version
 
-1. Info.plistのバージョンと `docs/RELEASE-NOTES.md` を更新してmainへpush。
-2. mainのCI成功とlatest ZIPを確認。
-3. `git tag -a v0.0.1 -m 'Release v0.0.1'`、`git push origin v0.0.1`。
-4. タグのActions成功、ReleaseのZIPとSHA-256を確認。
+1. Update the version in Info.plist and `docs/RELEASE-NOTES.md`, then push to main.
+2. Confirm main CI succeeds and inspect the latest ZIP.
+3. Create and push the version tag, for example:
 
-ローカルで同じZIPを作成:
+   ```sh
+   git tag -a v0.0.2 -m 'Release v0.0.2'
+   git push origin v0.0.2
+   ```
+
+4. Confirm the tag's Actions run succeeds and the release contains the ZIP and SHA-256 file.
+
+To create the same ZIP locally:
 
 ```sh
 SIGNING_IDENTITY='Developer ID Application: ISHII 2BIT PROGRAM OFFICE (RS3AQSY9YN)' \
 EXPECTED_TEAM_ID=RS3AQSY9YN bash scripts/package-release.sh
 ```
 
-成果物は `artifacts/releases/SSHConfigEditor-v0.0.1-macOS-universal.zip` と `.zip.sha256`。`RELEASE_LABEL=latest` でlatest名になる。生成処理は両architecture、署名者・Team ID、Hardened Runtime・timestamp、バージョンを検査し、ZIPを新しい一時ディレクトリへ展開して再検証する。
+Output: `artifacts/releases/SSHConfigEditor-v0.0.2-macOS-universal.zip` and `.zip.sha256`. Set `RELEASE_LABEL=latest` for the development filename. Packaging checks both architectures, signing authority, Team ID, Hardened Runtime, timestamp, and version, then extracts the final ZIP into a fresh directory and verifies it again.
 
-ダウンロード後、同じフォルダで:
+After downloading, run these commands in the download directory:
 
 ```sh
-shasum -a 256 -c SSHConfigEditor-v0.0.1-macOS-universal.zip.sha256
+shasum -a 256 -c SSHConfigEditor-v0.0.2-macOS-universal.zip.sha256
 codesign --verify --deep --strict SSHConfigEditor.app
 codesign -dv --verbose=4 SSHConfigEditor.app
 ```
 
-署名検証は公証や実機の動作確認を代替しない。Intel実機確認、macOS 14実機確認、公証は未実施。
+Signature checks do not replace notarization or hardware testing. Intel hardware, macOS 14 hardware, and notarization remain unverified.
 
-## 根拠
+## References
 
-- [Apple Developer ID](https://developer.apple.com/developer-id/) — Developer ID署名と公証の区別。
-- [Apple Notarizing macOS software](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) — 将来の公証追加時はAccepted → staple → 最終ZIP再生成の順に実施。
-- [GitHub macOS runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) と [macOS 15 image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md) — runner・Xcode選定（2026-11-06確認）。
+- [Apple Developer ID](https://developer.apple.com/developer-id/): Developer ID signing and notarization.
+- [Apple notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution): When adding notarization, require acceptance, staple the app, rebuild the final ZIP, and verify its extracted contents.
+- [GitHub macOS runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) and [macOS 15 image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md): Runner and Xcode selection, checked on 2026-11-06.

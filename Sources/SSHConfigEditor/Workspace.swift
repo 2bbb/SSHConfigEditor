@@ -66,7 +66,7 @@ final class Workspace {
     var dirtyFiles: [EditableFile] { files.filter(\.dirty) }
     var fileTree: [FileTreeNode] {
         var root = FileTreeNode(id: "base", title: "")
-        var external = FileTreeNode(id: "external", title: "外部参照")
+        var external = FileTreeNode(id: "external", title: "External files")
         let prefix = baseURL.standardizedFileURL.path + "/"
         for file in files {
             let path = file.snapshot.url.standardizedFileURL.path
@@ -101,7 +101,7 @@ final class Workspace {
     private func load(_ url: URL) throws -> EditableFile {
         let id = url.resolvingSymlinksInPath().path
         if let existing = files.first(where: { $0.id == id }) { return existing }
-        guard files.count < 512 else { throw ConfigError("ファイル数が上限に達しました。") }
+        guard files.count < 512 else { throw ConfigError("File limit reached.") }
         let file = try EditableFile(url: url)
         files.append(file)
         return file
@@ -120,7 +120,7 @@ final class Workspace {
             var visited = 0
             while let url = enumerator.nextObject() as? URL {
                 visited += 1
-                if visited > 4096 { status = "conf.dの探索上限に達しました"; break }
+                if visited > 4096 { status = "conf.d traversal limit reached"; break }
                 if enumerator.level > 32 { enumerator.skipDescendants(); continue }
                 guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
                 do { _ = try load(url) }
@@ -170,20 +170,20 @@ final class Workspace {
     @discardableResult func moveDraggedHost(to destination: EditableFile, before blockID: Int? = nil) -> Bool {
         guard let drag = dragSession, let source = files.first(where: { $0.id == drag.sourceID }), source.id != destination.id else { return false }
         do {
-            guard source.text == drag.originalText else { throw ConfigError("移動元が変更されています。もう一度ドラッグしてください。") }
+            guard source.text == drag.originalText else { throw ConfigError("The source has changed. Drag the Host again.") }
             let move = try HostMoveResult(source: source.text, blockID: drag.blockID, destination: destination.text, beforeBlockID: blockID)
             source.text = move.source
             destination.text = move.destination
             select(path: destination.snapshot.url.path)
             selectedBlockID = move.insertedBlockID
             editorMode = "fields"
-            status = "Hostを\(destination.name)へ移動しました（未保存）"
+            status = "Moved Host to \(destination.name) (unsaved)"
             endDrag()
             return true
         } catch { errorMessage = error.localizedDescription; endDrag(); return false }
     }
     func planRename(_ file: EditableFile, to name: String) throws -> FileRenamePlan {
-        guard dirtyFiles.isEmpty else { throw ConfigError("名前を変更する前に、編集内容を保存してください。") }
+        guard dirtyFiles.isEmpty else { throw ConfigError("Save your changes before renaming.") }
         return try FileRenamePlan(source: file.snapshot.url, newName: name,
             documents: Dictionary(uniqueKeysWithValues: files.map { ($0.snapshot.url, $0.text) }), baseDirectory: baseURL)
     }
@@ -195,7 +195,7 @@ final class Workspace {
             files = []; reloadGraph()
             _ = try load(plan.destination)
             select(path: plan.destination.path)
-            status = "\(name) に変更しました（参照元\(plan.rewrites.count)ファイル更新）"
+            status = "Renamed to \(name). Updated referencing files: \(plan.rewrites.count)."
             renameTarget = nil
             return true
         } catch { errorMessage = error.localizedDescription; return false }
@@ -203,7 +203,7 @@ final class Workspace {
     func openConfig() {
         guard confirmDiscard() else { return }
         let panel = NSOpenPanel()
-        panel.title = "ルート設定を開く"
+        panel.title = "Open Root Configuration"
         panel.showsHiddenFiles = true
         panel.canChooseDirectories = false
         panel.directoryURL = baseURL
@@ -224,13 +224,13 @@ final class Workspace {
         let selection = selectedFileID
         files = []; reloadGraph()
         selectedFileID = files.contains(where: { $0.id == selection }) ? selection : rootFile?.id
-        selectedBlockID = 0; status = "ディスクから再読み込みしました"
+        selectedBlockID = 0; status = "Reloaded from disk"
     }
     func addFragment() {
         guard let root = rootFile else { return }
         let panel = NSSavePanel()
-        panel.title = "設定ファイルを追加"
-        panel.prompt = "追加"
+        panel.title = "Add Configuration File"
+        panel.prompt = "Add"
         panel.directoryURL = baseURL.appendingPathComponent("conf.d")
         panel.nameFieldStringValue = "hosts.conf"
         panel.showsHiddenFiles = true
@@ -239,11 +239,11 @@ final class Workspace {
         do {
             guard !FileManager.default.fileExists(atPath: url.path),
                   !files.contains(where: { $0.id == url.resolvingSymlinksInPath().path }) else {
-                throw ConfigError("既存ファイルは左の一覧から開いてください。")
+                throw ConfigError("Open existing files from the sidebar.")
             }
             guard !url.path.contains("\n"), !url.path.contains("\r"), !url.path.contains("%"), !url.path.contains("${"),
                   !url.path.contains("*"), !url.path.contains("?"), !url.path.contains("[") else {
-                throw ConfigError("Includeで特別な意味を持つ文字を含まないファイル名を指定してください。")
+                throw ConfigError("Choose a filename without characters that have special meaning in Include patterns.")
             }
             let file = try load(url)
             file.text = "# \(url.lastPathComponent)\n\nHost new-host\n    HostName example.com\n"
@@ -261,7 +261,7 @@ final class Workspace {
                 root.text = "Include \"\(quoted)\"" + root.parsed.newline + root.text
             }
             select(path: url.path)
-            status = "新規ファイルを追加しました。「すべて保存」でディスクに反映します。"
+            status = "New file added. Choose Save All to write it to disk."
             reloadGraph()
         } catch { errorMessage = error.localizedDescription }
     }
@@ -283,22 +283,22 @@ final class Workspace {
                 if let backup = try file.snapshot.save(file.text, backupRoot: backupRoot) { lastBackup = backup }
                 saved += 1
             }
-            status = "\(saved)ファイルを保存しました"
+            status = "Files saved: \(saved)"
             reloadGraph()
             return true
         } catch {
-            errorMessage = (saved == 0 ? "" : "\(saved)ファイルは保存済みです。残りは未保存です。\n") + error.localizedDescription
+            errorMessage = (saved == 0 ? "" : "Files saved: \(saved). The remaining changes are unsaved.\n") + error.localizedDescription
             return false
         }
     }
     func confirmDiscard() -> Bool {
         guard !dirtyFiles.isEmpty else { return true }
         let alert = NSAlert()
-        alert.messageText = "未保存の変更があります"
-        alert.informativeText = "\(dirtyFiles.count)ファイルの変更を保存しますか？"
-        alert.addButton(withTitle: "すべて保存")
-        alert.addButton(withTitle: "キャンセル")
-        alert.addButton(withTitle: "変更を破棄")
+        alert.messageText = "Unsaved Changes"
+        alert.informativeText = "Save changes to the modified files (\(dirtyFiles.count))?"
+        alert.addButton(withTitle: "Save All")
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Discard Changes")
         switch alert.runModal() {
         case .alertFirstButtonReturn: return saveAll()
         case .alertThirdButtonReturn: return true

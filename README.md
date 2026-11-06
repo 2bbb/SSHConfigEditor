@@ -1,81 +1,95 @@
 # SSH Config Editor
 
-`~/.ssh/config` と分割設定を編集するmacOSネイティブアプリ。SwiftUI + AppKit、外部パッケージなし。macOS 14以降。
+A native macOS editor for `~/.ssh/config` and included configuration files. Built with SwiftUI and AppKit, with no external package dependencies. The interface uses English by default.
 
-## 起動
+[日本語](README_ja.md)
 
-[正式リリース](https://github.com/2bbb/SSHConfigEditor/releases/latest) / [mainの最新版](https://github.com/2bbb/SSHConfigEditor/releases/tag/latest)からZIPをダウンロードし、展開したアプリをApplicationsへ移動する。macOS 14以降、Apple Silicon / Intel対応。Developer ID署名済み、**未公証**。初回起動がブロックされた場合は、入手元を確認してシステム設定 → プライバシーとセキュリティの「このまま開く」で許可する。
+## Install
 
-## ローカルビルド
+Download the Universal ZIP from the [stable release](https://github.com/2bbb/SSHConfigEditor/releases/latest) or the [latest development build](https://github.com/2bbb/SSHConfigEditor/releases/tag/latest). Extract it and move `SSHConfigEditor.app` to Applications.
 
-`artifacts/SSHConfigEditor.app` をダブルクリック。標準では `~/.ssh/config` を開く。アプリを開くだけでは設定を変更しない。
+Requires macOS 14 or later. Release builds include Apple Silicon and Intel binaries. They are **Developer ID signed but not notarized**. If macOS blocks the first launch, verify the download source, then use **System Settings → Privacy & Security → Open Anyway**. Each release includes a SHA-256 checksum.
+
+The app opens `~/.ssh/config` by default. Opening a file does not change it.
+
+## Build locally
+
+Requires Xcode with a Swift 6 toolchain.
 
 ```sh
 bash scripts/build.sh
 open artifacts/SSHConfigEditor.app
 ```
 
-Xcode/Swift 6対応ツールチェーンが必要。ビルドしたMacのアーキテクチャ用に生成する。`UNIVERSAL=1` で両アーキテクチャを生成。既定はローカル利用用のad-hoc署名。Developer IDで署名する場合は `SIGNING_IDENTITY` を指定する。
+By default, the script builds for the current Mac and uses an ad-hoc signature for local use. Set `UNIVERSAL=1` to build both architectures, or `SIGNING_IDENTITY` to sign with a Developer ID identity.
 
-CI・バージョン更新・ZIPの検証方法は [配布手順](docs/RELEASE.md) を参照。
+See the [release guide](docs/RELEASE.md) for CI, version updates, and ZIP verification.
 
-## 操作
+## Use
 
-- 左：設定ファイルのフォルダ階層。`Include` タブでネスト、参照行、条件、展開順、一致なし・循環を確認。
-- 中央：選択ファイル内のHost/Match一覧と検索。
-- 右：項目編集／原文編集。コメント、未知の設定、複数IdentityFileは保持。複数行項目とMatchは原文で編集。
-- `⌘N`：Host追加。左下のファイル追加：新規分割ファイルと必要なIncludeを未保存状態で追加。
-- `⌘S`：すべて保存。`変更を確認` で保存済み／変更後を並べて確認。
-- 名前変更：ファイルの右クリック、または左下の鉛筆。先に編集内容を保存する。`hoge/bar` と指定すると現在のフォルダからの相対パスへ移動し、不足するディレクトリを作る。参照元の変更プレビューを確認して実行。
-- Host移動：中央のHost行を左の別ファイルへドラッグ。すぐドロップすると末尾へ追加。ファイルに約0.7秒重ねると移動先一覧が開き、ブロック間／末尾の挿入位置を選べる。移動は未保存の変更として両ファイルに反映。Escape・アプリ外へのドロップは変更しない。
+- **Files:** Browse the directory hierarchy. Switch to **Include** to inspect nested references, source lines, conditions, expansion order, missing matches, and cycles.
+- **Host list:** Search and select Host or Match blocks in the current file.
+- **Fields / Source:** Edit common settings in the form or edit the entire source file. Comments, unknown directives, and repeated IdentityFile entries are preserved. Use Source for repeated directives and Match conditions.
+- **Add Host (`⌘N`):** Append a Host block. **Add Configuration File** creates a split configuration and any needed Include directive as unsaved changes.
+- **Save All (`⌘S`):** Save modified files. **Review Changes** shows the saved and edited content side by side.
+- **Rename:** Right-click a file or use the pencil button. Save edits first. A name such as `hoge/bar` moves the file relative to its current directory, creating missing folders. Review the Include updates before applying the rename.
+- **Move a Host:** Drag a Host row onto another file to append it. Hover over a file for about 0.7 seconds to open its block list and choose an insertion point. Both files remain unsaved until you save. Press Escape or drop outside the app to cancel.
 
-## Includeと名前変更
+## Includes and renaming
 
-ユーザー設定の相対Includeは `~/.ssh` が基準。読み込み元ファイルのディレクトリではない。`conf.d` は自動適用されず、Includeが必要。直接参照されたファイルを再帰的に探索し、`conf.d` 以下の未参照ファイルも階層表示する。
+Relative Include paths in user configuration resolve from `~/.ssh`, not from the directory containing the referring file. `conf.d` is not loaded automatically by OpenSSH: it needs an Include directive. The app follows references recursively and also lists unreferenced files under `conf.d`.
 
-名前変更では、開いている設定ファイルのIncludeを更新する。直接参照は該当引数だけを変更。globが新しい名前にも一致する場合はそのまま。一致しなくなる場合は元のglobを残し、新しいパスを追加する。スペース入りの名前、複数参照元、条件内のIncludeにも対応。
+Renaming updates Include directives in loaded files. Explicit references update only the relevant argument. A wildcard remains unchanged when it still matches the renamed file; otherwise, the original wildcard is preserved and the new path is added explicitly. Names containing spaces, multiple referring files, and Includes inside conditional blocks are supported.
 
-未ロードの設定・シェルスクリプト・外部ツールの参照は更新対象外。シンボリックリンク経由の名前変更や未解決の `%` トークンを含む参照は操作を中止する。globの展開順やHost移動で設定の優先順位は変わりうる。
+References in unloaded configurations, shell scripts, or external tools are outside the update scope. Renaming stops for symbolic-link paths or unresolved `%` tokens. Renaming and moving Host blocks can change configuration precedence through wildcard expansion order or block order.
 
-## 保存と復元
+## Saving and recovery
 
-保存前に読み込み時の内容とディスクを比較し、競合があれば上書きしない。既存のシンボリックリンクはリンク先を更新。通常の保存は既存POSIX権限を維持、新規ファイルは `0600`、作成ディレクトリは `0700`。
+Before saving, the app compares the file on disk with the version originally loaded. It refuses to overwrite conflicting changes. Existing symbolic links update their targets. Ordinary saves preserve existing POSIX permissions; new files use `0600` and new directories use `0700`.
 
-バックアップ：`~/Library/Application Support/SSHConfigEditor/Backups/<UUID>/`
+Backups are stored outside Include paths at:
 
-- `config`：保存前の内容（権限 `0600`）
-- `source.json`：元のパス、実体のパス、権限、保存時刻
+```text
+~/Library/Application Support/SSHConfigEditor/Backups/<UUID>/
+```
 
-バックアップはIncludeのglobに混入しない場所に保存する。復元はアプリを閉じ、`source.json` の対象を確認したうえで `config` の内容を戻す。保持期限による自動削除は行わない。
+- `config`: The previous content, with permissions `0600`.
+- `source.json`: The original path, resolved path, permissions, and save time.
 
-ファイル単位は同一ディレクトリの一時ファイルからatomic renameで保存。複数ファイルをまとめた原子的更新ではない。途中失敗時は保存済み件数を表示し、残りの編集を保持する。名前変更は参照更新に失敗した場合、完了した更新と移動の取り消しを試みる。外部変更などで復元できなければエラーを表示する。
+To restore a backup, close the app, check the target in `source.json`, then restore the content from `config`. Backups are not automatically expired or deleted.
 
-## 対象範囲
+Each file is saved by an atomic rename from a temporary file in the same directory. Saving multiple files is not a single atomic transaction. On partial failure, the app reports how many files were saved and keeps the remaining edits. If an Include update fails during a rename, the app attempts to roll back completed writes and the move. It reports incomplete recovery when external changes or other errors prevent rollback.
 
-OpenSSHの完全な構文検証・有効値計算・接続機能はない。基本検査は引用符、値の欠落、Portの範囲。`Host`/`Match`条件や`Match exec`は実行しない。条件付きIncludeも「参照関係」として表示する。環境変数 `${NAME}` と `~` を解決、接続依存の `%` トークンは未解決として表示。秘密鍵は読み込みを拒否。UTF-8、1ファイル2 MB、512ファイル、Include深さ32まで。
+## Scope and limitations
 
-## 検証
+The app does not provide full OpenSSH syntax validation, calculate effective settings, or make SSH connections. Basic checks cover quotation marks, missing values, and the Port range. Host and Match conditions, including `Match exec`, are never executed. Conditional Includes are shown as references only.
+
+Environment variables such as `${NAME}` and `~` are expanded. Connection-dependent `%` tokens remain unresolved. Private key files are rejected. Files must be UTF-8, with a maximum of 2 MB per file, 512 loaded files, and an Include depth of 32.
+
+## Verification
 
 ```sh
 swift test
 ```
 
-原文保持、Include、保存競合、バックアップ、名前変更、Host移動、ホバー／キャンセルを対象にする。OpenSSH互換性の対象テストは安全な一時fixtureに限り `/usr/bin/ssh -G` を実行する。
+Tests cover source preservation, Includes, save conflicts, backups, renaming, Host moves, and hover/cancel state. Targeted OpenSSH compatibility checks run `/usr/bin/ssh -G` only against temporary fixtures.
 
-実設定と分離したUI確認：
+To inspect the UI without opening your real configuration:
 
 ```sh
 open artifacts/SSHConfigEditor.app --args --config "$PWD/Demo/config" --include-base "$PWD/Demo"
 ```
 
-既存プロセスがある場合は終了してから実行する。`Demo/` はサンプルであり、保存すると変更される。検証時は `artifacts/` 以下へコピーして使う。
+Quit an existing instance first. Saving edits changes the sample files, so copy `Demo/` under `artifacts/` before testing edits.
 
-## 構成
+See [implementation sources](docs/SOURCES.md) and [verification notes](docs/VERIFICATION.md), currently maintained in Japanese. Intel hardware and macOS 14 hardware have not been tested.
 
-- `Sources/SSHConfigCore/`：原文解析、Include探索、安全な保存、名前変更、Host移動
-- `Sources/SSHConfigEditor/`：編集状態とmacOS UI
-- `Tests/`：対象テスト
-- `Resources/`、`scripts/`：app bundle、生成アイコン、ビルド
-- `Demo/`：サンプル設定
-- `artifacts/`：起動用アプリとローカル検証成果物
-- `docs/`：仕様の出典と検証記録
+## Project layout
+
+- `Sources/SSHConfigCore/`: Source parsing, Include traversal, safe writes, renaming, and Host moves.
+- `Sources/SSHConfigEditor/`: Editing state and native macOS UI.
+- `Tests/`: Targeted tests.
+- `Resources/`, `scripts/`: App bundle resources, generated icon, and build scripts.
+- `Demo/`: Sample configuration.
+- `artifacts/`: Built app, release ZIPs, and local verification output.
+- `docs/`: Source references, release instructions, and verification records.

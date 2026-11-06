@@ -35,7 +35,7 @@ struct HostDragSource: NSViewRepresentable {
             self.workspace = workspace; self.file = file; self.block = block
             super.init(frame: .zero)
             setAccessibilityElement(false)
-            toolTip = "別ファイルへドラッグして移動。重ねたまま待つと挿入位置を選択できます。"
+            toolTip = "Drag to another file to move. Hover to choose an insertion point."
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
         override func mouseDown(with event: NSEvent) {
@@ -148,11 +148,11 @@ struct NativeHostDropTarget: NSViewRepresentable {
             guard springLoads, let file, let workspace else { return nil }
             workspace.select(path: file.snapshot.url.path)
             let menu = NSMenu()
-            let rename = menu.addItem(withTitle: "名前を変更…", action: #selector(renameFile), keyEquivalent: "")
+            let rename = menu.addItem(withTitle: "Rename…", action: #selector(renameFile), keyEquivalent: "")
             rename.target = self; rename.isEnabled = workspace.dirtyFiles.isEmpty && file.snapshot.original != nil
-            let reveal = menu.addItem(withTitle: "Finderで表示", action: #selector(revealFile), keyEquivalent: "")
+            let reveal = menu.addItem(withTitle: "Show in Finder", action: #selector(revealFile), keyEquivalent: "")
             reveal.target = self
-            let copy = menu.addItem(withTitle: "パスをコピー", action: #selector(copyPath), keyEquivalent: "")
+            let copy = menu.addItem(withTitle: "Copy Path", action: #selector(copyPath), keyEquivalent: "")
             copy.target = self
             menu.autoenablesItems = false
             return menu
@@ -175,7 +175,7 @@ struct HostInsertionSlot: View {
         HStack(spacing: 6) {
             Image(systemName: "plus.circle.fill")
             Rectangle().frame(height: 2)
-            Text(beforeBlockID == nil ? "末尾に移動" : "ここに移動").font(.caption).fixedSize()
+            Text(beforeBlockID == nil ? "Move to End" : "Move Here").font(.caption).fixedSize()
         }
         .foregroundStyle(targeted ? Color.accentColor : Color.secondary.opacity(0.65))
         .padding(.vertical, 10)
@@ -184,6 +184,6 @@ struct HostInsertionSlot: View {
             NativeHostDropTarget(workspace: workspace, file: file, beforeBlockID: beforeBlockID,
                                  highlight: { targeted = $0 })
         }
-        .accessibilityLabel(beforeBlockID == nil ? "ファイル末尾へ移動" : "このブロックの前へ移動")
+        .accessibilityLabel(beforeBlockID == nil ? "Move to end of file" : "Move before this block")
     }
 }

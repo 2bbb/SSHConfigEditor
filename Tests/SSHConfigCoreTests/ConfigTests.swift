@@ -61,7 +61,7 @@ final class ConfigTests: XCTestCase {
         let graph = IncludeGraph(baseDirectory: root).build(root: main) { try String(contentsOf: $0, encoding: .utf8) }
         let children = try XCTUnwrap(graph.children?.first?.children)
         XCTAssertEqual(children.map(\.title), ["a.conf", "b.conf"])
-        XCTAssertEqual(children[0].children?.first?.children?.first?.note, "循環参照")
+        XCTAssertEqual(children[0].children?.first?.children?.first?.note, "Include cycle")
         let pending = conf.appendingPathComponent("c.conf")
         XCTAssertEqual(try IncludeGraph(baseDirectory: root).expand("conf.d/*.conf", pendingFiles: [pending]).map(\.lastPathComponent), ["a.conf", "b.conf", "c.conf"])
     }

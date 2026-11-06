@@ -2,6 +2,8 @@
 
 確認日：2026-11-06。
 
+- [Apple CFBundleDevelopmentRegion](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundledevelopmentregion)、[CFBundleLocalizations](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundlelocalizations)：v0.0.2では既定言語とアプリで扱う言語をenに設定。アプリ内文言を英語に統一し、macOS標準メニューも英語になることを実機確認。
+
 - [OpenSSH ssh_config(5)](https://man.openbsd.org/ssh_config)：先に得られた値の優先、Host/Match、Includeの基準パスとlexical order、環境変数・トークン。
 - [OpenSSH argv_split](https://github.com/openssh/openssh-portable/blob/master/misc.c)：引用符・エスケープの扱い。アプリは原文を保持する限定的な索引で、OpenSSH評価器の再実装ではない。
 - [Apple NavigationSplitView](https://developer.apple.com/documentation/swiftui/navigationsplitview)：3ペインのファイル／ブロック／詳細構成。

@@ -16,7 +16,7 @@ struct ContentView: View {
             do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
             workspace.reloadGraph()
         }
-        .alert("操作を完了できませんでした", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
+        .alert("Could Not Complete Operation", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
             Button("OK") { workspace.errorMessage = nil }
         } message: { Text(workspace.errorMessage ?? "") }
         .sheet(isPresented: $workspace.showChanges) { ChangesView(workspace: workspace) }
@@ -26,8 +26,8 @@ struct ContentView: View {
     private var navigation: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                Picker("表示", selection: $sidebarMode) {
-                    Text("ファイル").tag("files")
+                Picker("View", selection: $sidebarMode) {
+                    Text("Files").tag("files")
                     Text("Include").tag("includes")
                 }.pickerStyle(.segmented).labelsHidden().padding(12)
                 if sidebarMode == "includes", let graph = workspace.graph {
@@ -54,13 +54,13 @@ struct ContentView: View {
                 }
                 Divider()
                 HStack {
-                    Button(action: workspace.addFragment) { Image(systemName: "doc.badge.plus") }.help("設定ファイルを追加")
-                    Button(action: workspace.openConfig) { Image(systemName: "folder") }.help("ルート設定を開く")
+                    Button(action: workspace.addFragment) { Image(systemName: "doc.badge.plus") }.help("Add Configuration File")
+                    Button(action: workspace.openConfig) { Image(systemName: "folder") }.help("Open Root Configuration")
                     Button { workspace.renameTarget = workspace.selected } label: { Image(systemName: "pencil") }
-                        .help("ファイル名を変更（編集内容は先に保存）")
+                        .help("Rename file (save changes first)")
                         .disabled(workspace.selected?.snapshot.original == nil || !workspace.dirtyFiles.isEmpty)
                     Spacer()
-                    Text("\(workspace.files.count)ファイル").font(.caption).foregroundStyle(.secondary)
+                    Text("Files: \(workspace.files.count)").font(.caption).foregroundStyle(.secondary)
                 }.buttonStyle(.borderless).padding(12)
             }
             .navigationSplitViewColumnWidth(min: 210, ideal: 250, max: 360)
@@ -68,7 +68,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Host・設定を検索", text: $workspace.query).textFieldStyle(.plain)
+                    TextField("Search hosts and settings", text: $workspace.query).textFieldStyle(.plain)
                 }.padding(12)
                 Divider()
                 List(selection: $workspace.selectedBlockID) {
@@ -83,7 +83,7 @@ struct ContentView: View {
                 }.listStyle(.inset)
                 Divider()
                 HStack {
-                    Button(action: workspace.addHost) { Label("Hostを追加", systemImage: "plus") }
+                    Button(action: workspace.addHost) { Label("Add Host", systemImage: "plus") }
                         .disabled(workspace.selected == nil)
                     Spacer()
                 }.buttonStyle(.borderless).padding(12)
@@ -92,16 +92,16 @@ struct ContentView: View {
             if let file = workspace.selected {
                 FileEditor(workspace: workspace, file: file)
             } else {
-                ContentUnavailableView("設定ファイルを選択", systemImage: "doc.text", description: Text("左の一覧から編集するファイルを選択してください。"))
+                ContentUnavailableView("Select a Configuration File", systemImage: "doc.text", description: Text("Choose a file in the sidebar to start editing."))
             }
         }
-        .navigationTitle("SSH設定")
+        .navigationTitle("SSH Settings")
         .toolbar {
             ToolbarItemGroup {
-                Button(action: workspace.reloadFromDisk) { Image(systemName: "arrow.clockwise") }.help("ディスクから再読み込み")
-                Button { workspace.showChanges = true } label: { Label("変更を確認", systemImage: "square.split.2x1") }
+                Button(action: workspace.reloadFromDisk) { Image(systemName: "arrow.clockwise") }.help("Reload from Disk")
+                Button { workspace.showChanges = true } label: { Label("Review Changes", systemImage: "square.split.2x1") }
                     .disabled(workspace.dirtyFiles.isEmpty)
-                Button { workspace.saveAll() } label: { Label("すべて保存", systemImage: "square.and.arrow.down") }
+                Button { workspace.saveAll() } label: { Label("Save All", systemImage: "square.and.arrow.down") }
                     .disabled(workspace.dirtyFiles.isEmpty)
                     .keyboardShortcut("s")
             }
@@ -112,13 +112,13 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 Image(systemName: workspace.dirtyFiles.isEmpty ? "checkmark.circle" : "circle.fill")
                     .foregroundStyle(workspace.dirtyFiles.isEmpty ? .secondary : Color.orange)
-                Text(workspace.dirtyFiles.isEmpty ? "保存済み" : "\(workspace.dirtyFiles.count)ファイルに未保存の変更")
+                Text(workspace.dirtyFiles.isEmpty ? "Saved" : "Unsaved files: \(workspace.dirtyFiles.count)")
                 if workspace.dragSession != nil {
-                    Text("ファイルに重ねて待つと、挿入位置を選択できます").foregroundStyle(.secondary)
+                    Text("Hover over a file to choose an insertion point").foregroundStyle(.secondary)
                 } else if !workspace.status.isEmpty { Text(workspace.status).foregroundStyle(.secondary).lineLimit(1) }
                 Spacer()
                 if workspace.lastBackup != nil {
-                    Button("バックアップ") { NSWorkspace.shared.open(workspace.backupRoot) }.buttonStyle(.link)
+                    Button("Backups") { NSWorkspace.shared.open(workspace.backupRoot) }.buttonStyle(.link)
                 }
             }.font(.caption).padding(.horizontal, 14).padding(.vertical, 8).background(.bar)
     }
@@ -150,16 +150,16 @@ struct FileRow: View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: file.name == "config" ? "doc.text" : "doc.text.fill").foregroundStyle(.secondary).padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
-                HStack { Text(file.name).fontWeight(.medium); if file.dirty { Circle().fill(.orange).frame(width: 6, height: 6).accessibilityLabel("未保存") } }
-                if !file.referenced { Text("未参照").font(.caption2).foregroundStyle(.secondary) }
+                HStack { Text(file.name).fontWeight(.medium); if file.dirty { Circle().fill(.orange).frame(width: 6, height: 6).accessibilityLabel("Unsaved") } }
+                if !file.referenced { Text("Not included").font(.caption2).foregroundStyle(.secondary) }
                 Text(file.displayPath).font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)
         }.padding(.vertical, 5).help(file.displayPath)
         .contextMenu {
-            Button("名前を変更…", action: rename).disabled(!canRename || file.snapshot.original == nil)
-            Button("Finderで表示") { NSWorkspace.shared.activateFileViewerSelecting([file.snapshot.url]) }
-            Button("パスをコピー") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(file.snapshot.url.path, forType: .string) }
+            Button("Rename…", action: rename).disabled(!canRename || file.snapshot.original == nil)
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.snapshot.url]) }
+            Button("Copy Path") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(file.snapshot.url.path, forType: .string) }
         }
     }
 }
@@ -172,11 +172,11 @@ private struct BlockRow: View {
             Image(systemName: block.kind == "host" ? (block.title.contains("*") ? "asterisk" : "server.rack") : block.kind == "match" ? "line.3.horizontal.decrease" : "slider.horizontal.3")
                 .frame(width: 18).foregroundStyle(block.kind == "host" ? Color.accentColor : .secondary).padding(.top, 2)
             VStack(alignment: .leading, spacing: 5) {
-                Text(block.title.isEmpty ? "未設定" : block.title).fontWeight(.medium).lineLimit(2)
+                Text(block.title.isEmpty ? "Untitled" : block.title).fontWeight(.medium).lineLimit(2)
                 if let document, block.kind == "host", !document.value("HostName", in: block).isEmpty {
                     Text(document.value("HostName", in: block)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
-                } else { Text(block.kind == "match" ? "Match条件" : block.kind == "global" ? "先頭の設定・Include" : "Hostパターン").font(.caption).foregroundStyle(.secondary) }
-                Text("行 \(block.start + 1)").font(.caption2).foregroundStyle(.tertiary)
+                } else { Text(block.kind == "match" ? "Match conditions" : block.kind == "global" ? "Global settings and Includes" : "Host patterns").font(.caption).foregroundStyle(.secondary) }
+                Text("Line \(block.start + 1)").font(.caption2).foregroundStyle(.tertiary)
             }
         }.padding(.vertical, 7)
     }
@@ -195,25 +195,25 @@ private struct FileEditor: View {
                     Text(file.displayPath).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                 }
                 Spacer()
-                Picker("編集方法", selection: $workspace.editorMode) {
-                    Text("項目").tag("fields")
-                    Text("原文").tag("source")
+                Picker("Edit mode", selection: $workspace.editorMode) {
+                    Text("Fields").tag("fields")
+                    Text("Source").tag("source")
                 }.pickerStyle(.segmented).labelsHidden().frame(width: 130)
             }.padding(20)
             Divider()
             if workspace.editorMode == "source" {
                 TextEditor(text: $file.text)
                     .font(.system(size: 13, design: .monospaced)).padding(12)
-                    .accessibilityLabel("設定ファイルの原文")
+                    .accessibilityLabel("Configuration source")
                 HStack {
-                    Text("\(file.parsed.lines.count)行 · UTF-8 · \(file.parsed.newline == "\r\n" ? "CRLF" : "LF")")
+                    Text("Lines: \(file.parsed.lines.count) · UTF-8 · \(file.parsed.newline == "\r\n" ? "CRLF" : "LF")")
                     Spacer()
-                    Text("ファイル全体を編集")
+                    Text("Editing the entire file")
                 }.font(.caption).foregroundStyle(.secondary).padding(12)
             } else if let block {
                 BlockFields(workspace: workspace, file: file, block: block)
             } else {
-                ContentUnavailableView("ブロックを選択", systemImage: "server.rack")
+                ContentUnavailableView("Select a Block", systemImage: "server.rack")
             }
             if !file.parsed.diagnostics.isEmpty {
                 Divider()
@@ -237,24 +237,24 @@ private struct BlockFields: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if block.kind == "match" {
-                    Label("Match条件は原文で編集します", systemImage: "line.3.horizontal.decrease").font(.headline)
-                    Text("条件の実行や接続は行いません。").foregroundStyle(.secondary)
+                    Label("Edit Match conditions in Source", systemImage: "line.3.horizontal.decrease").font(.headline)
+                    Text("Conditions are not evaluated. No connections are made.").foregroundStyle(.secondary)
                     sourceExcerpt
-                    Button("原文を編集") { workspace.editorMode = "source" }
+                    Button("Edit Source") { workspace.editorMode = "source" }
                 } else {
-                    if block.kind == "host" { field("Host", title: "Hostパターン") }
+                    if block.kind == "host" { field("Host", title: "Host patterns") }
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("このブロックの設定").font(.headline)
+                        Text("Block settings").font(.headline)
                         ForEach(fields, id: \.self) { key in field(key, title: key) }
                     }
-                    Text("空欄は未指定。継承後の値ではありません。複数行の項目・その他の設定は原文で編集できます。")
+                    Text("Blank fields are unset. Inherited values are not shown. Use Source for repeated directives and other settings.")
                         .font(.caption).foregroundStyle(.secondary)
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("原文プレビュー").font(.headline)
+                            Text("Source preview").font(.headline)
                             Spacer()
-                            Button("編集") { workspace.editorMode = "source" }.buttonStyle(.link)
+                            Button("Edit") { workspace.editorMode = "source" }.buttonStyle(.link)
                         }
                         sourceExcerpt
                     }
@@ -265,8 +265,8 @@ private struct BlockFields: View {
     private func field(_ key: String, title: String) -> some View {
         let duplicate = file.parsed.occurrences(key, in: block).count > 1
         return VStack(alignment: .leading, spacing: 6) {
-            HStack { Text(title).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary); if duplicate { Text("複数行あり — 原文で編集").font(.caption).foregroundStyle(.orange) } }
-            TextField("未指定", text: Binding(get: { file.parsed.value(key, in: block) }, set: { workspace.set(key, value: $0, blockID: block.id, file: file) }))
+            HStack { Text(title).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary); if duplicate { Text("Repeated directive — edit in Source").font(.caption).foregroundStyle(.orange) } }
+            TextField("Not set", text: Binding(get: { file.parsed.value(key, in: block) }, set: { workspace.set(key, value: $0, blockID: block.id, file: file) }))
                 .textFieldStyle(.roundedBorder).font(.system(.body, design: .monospaced)).disabled(duplicate)
         }
     }
@@ -283,28 +283,28 @@ private struct ChangesView: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("保存前の確認").font(.title2).fontWeight(.semibold)
+            Text("Review Changes").font(.title2).fontWeight(.semibold)
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     ForEach(workspace.dirtyFiles) { file in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(file.displayPath).font(.headline)
                             HStack(alignment: .top, spacing: 16) {
-                                source("保存済み", text: file.snapshot.original.flatMap { String(data: $0, encoding: .utf8) } ?? "（新規ファイル）")
-                                source("変更後", text: file.text)
+                                source("Saved", text: file.snapshot.original.flatMap { String(data: $0, encoding: .utf8) } ?? "(New file)")
+                                source("After changes", text: file.text)
                             }
                         }
                     }
                 }
             }
             HStack {
-                Text("既存ファイルは保存前にバックアップします。").font(.caption).foregroundStyle(.secondary)
+                Text("Existing files are backed up before saving.").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("閉じる") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("すべて保存") { if workspace.saveAll() { dismiss() } }.keyboardShortcut(.defaultAction)
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Save All") { if workspace.saveAll() { dismiss() } }.keyboardShortcut(.defaultAction)
             }
         }.padding(24).frame(width: 880, height: 620)
-        .alert("保存できませんでした", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
+        .alert("Could Not Save Changes", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
             Button("OK") { workspace.errorMessage = nil }
         } message: { Text(workspace.errorMessage ?? "") }
     }

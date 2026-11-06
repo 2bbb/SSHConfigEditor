@@ -14,25 +14,25 @@ public struct FileSnapshot: Sendable {
             return (FileSnapshot(url: url, target: target, original: nil, permissions: 0o600), "")
         }
         let attributes = try fm.attributesOfItem(atPath: target.path)
-        guard attributes[.type] as? FileAttributeType == .typeRegular else { throw ConfigError("通常ファイルではありません: \(url.path)") }
-        guard (attributes[.size] as? NSNumber)?.intValue ?? 0 <= 2 * 1024 * 1024 else { throw ConfigError("2 MBを超えるファイルは開けません。") }
+        guard attributes[.type] as? FileAttributeType == .typeRegular else { throw ConfigError("Not a regular file: \(url.path)") }
+        guard (attributes[.size] as? NSNumber)?.intValue ?? 0 <= 2 * 1024 * 1024 else { throw ConfigError("Files larger than 2 MB cannot be opened.") }
         let data = try Data(contentsOf: target)
-        guard let text = String(data: data, encoding: .utf8), !text.contains("\0") else { throw ConfigError("UTF-8のテキストではありません: \(url.lastPathComponent)") }
-        guard !text.contains("PRIVATE KEY-----") else { throw ConfigError("秘密鍵ファイルは開きません。") }
+        guard let text = String(data: data, encoding: .utf8), !text.contains("\0") else { throw ConfigError("Not a UTF-8 text file: \(url.lastPathComponent)") }
+        guard !text.contains("PRIVATE KEY-----") else { throw ConfigError("Private key files cannot be opened.") }
         return (FileSnapshot(url: url, target: target, original: data,
                              permissions: (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0o600), text)
     }
 
     public func verifyUnchanged() throws {
         guard url.resolvingSymlinksInPath().standardizedFileURL == target else {
-            throw ConfigError("リンク先が変更されています: \(url.path)")
+            throw ConfigError("The symlink target has changed: \(url.path)")
         }
         let current: Data?
         if FileManager.default.fileExists(atPath: target.path) {
             current = try Data(contentsOf: target)
         } else { current = nil }
         guard current == original else {
-            throw ConfigError("外部で変更されています: \(url.path)\n原文をコピーして退避するか、再読み込み後に編集し直してください。")
+            throw ConfigError("The file has changed on disk: \(url.path)\nCopy your edits to a safe location, or reload the file and edit it again.")
         }
     }
 
@@ -50,7 +50,7 @@ public struct FileSnapshot: Sendable {
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: backupRoot.path)
             let destination = directory.appendingPathComponent("config")
             let backupFD = open(destination.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
-            guard backupFD >= 0 else { throw ConfigError("バックアップを作成できません。") }
+            guard backupFD >= 0 else { throw ConfigError("Could not create a backup.") }
             let handle = FileHandle(fileDescriptor: backupFD, closeOnDealloc: true)
             try handle.write(contentsOf: original)
             try handle.synchronize()
@@ -69,7 +69,7 @@ public struct FileSnapshot: Sendable {
         // mkstemp starts at 0600; a newly written secret is never briefly world-readable.
         var template = Array(parent.appendingPathComponent(".ssh-config-edit-XXXXXX").path.utf8CString)
         let fd = mkstemp(&template)
-        guard fd >= 0 else { throw ConfigError("一時ファイルを作成できません: \(String(cString: strerror(errno)))") }
+        guard fd >= 0 else { throw ConfigError("Could not create a temporary file: \(String(cString: strerror(errno)))") }
         let temporary = String(decoding: template.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
         defer { close(fd); unlink(temporary) }
         try data.withUnsafeBytes { bytes in
@@ -77,15 +77,15 @@ public struct FileSnapshot: Sendable {
             while written < bytes.count {
                 let result = Darwin.write(fd, bytes.baseAddress!.advanced(by: written), bytes.count - written)
                 if result < 0 && errno == EINTR { continue }
-                guard result > 0 else { throw ConfigError("設定の書き込みに失敗しました。") }
+                guard result > 0 else { throw ConfigError("Could not write the configuration.") }
                 written += result
             }
         }
         guard fchmod(fd, mode_t(permissions & 0o777)) == 0, fsync(fd) == 0 else {
-            throw ConfigError("設定の保存準備に失敗しました。")
+            throw ConfigError("Could not prepare the configuration for saving.")
         }
         try verifyUnchanged()
-        guard rename(temporary, target.path) == 0 else { throw ConfigError("設定を置き換えられません: \(String(cString: strerror(errno)))") }
+        guard rename(temporary, target.path) == 0 else { throw ConfigError("Could not replace the configuration: \(String(cString: strerror(errno)))") }
         original = data
         return backup
     }

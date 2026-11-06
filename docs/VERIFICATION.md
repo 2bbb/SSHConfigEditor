@@ -49,3 +49,7 @@ UTTypeをInfo.plistに登録し、ドラッグ開始元を永続的なウイン�
 ## v0.0.1 配布検証
 
 2026-11-06、20テスト成功。Universal (arm64 / x86_64) ReleaseビルドとDeveloper ID署名、Hardened Runtime・secure timestamp、ZIP展開後の署名・Team ID・version・両architectureを検証。公証はユーザー指定で今回の対象外。Intel実機とmacOS 14実機での確認は未実施。公開用CIとダウンロード後の確認方法は `RELEASE.md` に記載。
+
+## v0.0.2 英語UI
+
+2026-11-06、アプリ内のラベル・ヘルプ・診断・エラー文言、ネイティブメニューとダイアログを英語化。Info.plistの既定言語と対応言語はen。署名済みReleaseビルドを起動し、日本語環境のMacでもFile/Editなど標準メニューとアプリ内表示が英語になることを確認。メイン画面、Fields/Source切り替え、名前変更ダイアログの長いボタンが表示幅に収まり、同名入力のエラーが英語で出ることを確認。名前変更はキャンセルし、実設定への書き込みは行っていない。READMEと配布案内は英語、既存の日本語READMEはREADME_ja.mdへ移動。

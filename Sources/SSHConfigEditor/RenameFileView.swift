@@ -16,15 +16,15 @@ struct RenameFileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("ファイル名を変更").font(.title2).fontWeight(.semibold)
+            Text("Rename File").font(.title2).fontWeight(.semibold)
             Text(file.displayPath).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
-            TextField("新しい名前・相対パス", text: $name).textFieldStyle(.roundedBorder)
+            TextField("New name or relative path", text: $name).textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
-            Text("hoge/bar で現在のフォルダ内の hoge へ移動。必要なフォルダは作成します。")
+            Text("Use folder/file to move into a subfolder. Missing folders will be created.")
                 .font(.caption).foregroundStyle(.secondary)
             switch result {
             case .success(let plan):
-                Text("参照元の更新：\(plan.rewrites.count)ファイル").font(.headline)
+                Text("Files with Include updates: \(plan.rewrites.count)").font(.headline)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         ForEach(plan.rewrites, id: \.url) { rewrite in
@@ -36,10 +36,10 @@ struct RenameFileView: View {
                                 }
                             }
                         }
-                        if plan.rewrites.isEmpty { Text("直接指定の更新はありません。Includeのワイルドカードは維持されます。").foregroundStyle(.secondary) }
+                        if plan.rewrites.isEmpty { Text("No explicit references need updating. Include wildcards will be preserved.").foregroundStyle(.secondary) }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Text("開いている設定内のIncludeが対象です。ワイルドカードの読み込み順はファイル名に応じて変わります。")
+                Text("Updates Include references in loaded files. Renaming can change wildcard expansion order.")
                     .font(.caption).foregroundStyle(.secondary)
             case .failure(let error):
                 Text(error.localizedDescription).foregroundStyle(.secondary)
@@ -47,12 +47,12 @@ struct RenameFileView: View {
             }
             HStack {
                 Spacer()
-                Button("キャンセル") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("名前と参照元を変更") { if workspace.rename(file, to: name) { dismiss() } }
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Rename and Update Includes") { if workspace.rename(file, to: name) { dismiss() } }
                     .keyboardShortcut(.defaultAction).disabled((try? result.get()) == nil)
             }
         }.padding(24).frame(width: 650, height: 440)
-        .alert("名前を変更できませんでした", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
+        .alert("Could Not Rename File", isPresented: Binding(get: { workspace.errorMessage != nil }, set: { if !$0 { workspace.errorMessage = nil } })) {
             Button("OK") { workspace.errorMessage = nil }
         } message: { Text(workspace.errorMessage ?? "") }
     }

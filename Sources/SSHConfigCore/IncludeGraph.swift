@@ -22,19 +22,19 @@ public struct IncludeGraph {
         for match in regex.matches(in: expanded, range: NSRange(expanded.startIndex..., in: expanded)).reversed() {
             let name = (expanded as NSString).substring(with: match.range(at: 1))
             guard let value = ProcessInfo.processInfo.environment[name] else {
-                throw ConfigError("環境変数 \(name) が未設定です。")
+                throw ConfigError("Environment variable \(name) is not set.")
             }
             expanded = (expanded as NSString).replacingCharacters(in: match.range, with: value)
         }
         guard !expanded.contains("%") else {
-            throw ConfigError("接続先に依存する % トークンは原文で保持しています。自動展開の対象外です。")
+            throw ConfigError("Connection-dependent % tokens are preserved in the source and are not expanded.")
         }
         expanded = (expanded as NSString).expandingTildeInPath
         let absolute = expanded.hasPrefix("/") ? expanded : baseDirectory.appendingPathComponent(expanded).path
         var result = glob_t()
         defer { globfree(&result) }
         let status = glob(absolute, 0, nil, &result)
-        guard status == 0 || status == GLOB_NOMATCH else { throw ConfigError("Include の展開に失敗しました: \(pattern)") }
+        guard status == 0 || status == GLOB_NOMATCH else { throw ConfigError("Could not expand Include: \(pattern)") }
         let existing = (0..<Int(result.gl_pathc)).compactMap { i in
             result.gl_pathv[i].map { URL(fileURLWithPath: String(cString: $0)).standardizedFileURL }
         }
@@ -49,16 +49,16 @@ public struct IncludeGraph {
             let path = url.standardizedFileURL.path
             let canonical = url.resolvingSymlinksInPath().path
             guard !ancestry.contains(canonical) else {
-                return IncludeNode(id: id, title: url.lastPathComponent, path: path, note: "循環参照")
+                return IncludeNode(id: id, title: url.lastPathComponent, path: path, note: "Include cycle")
             }
             guard ancestry.count < 32, count < 512 else {
-                return IncludeNode(id: id, title: url.lastPathComponent, path: path, note: "探索上限に達しました")
+                return IncludeNode(id: id, title: url.lastPathComponent, path: path, note: "Traversal limit reached")
             }
             count += 1
             do {
                 let text = try read(url)
                 var children: [IncludeNode] = []
-                var scope = "ファイル先頭"
+                var scope = "Global settings"
                 for (line, raw) in ConfigDocument(text).lines.enumerated() {
                     guard let d = Directive.parse(raw) else { continue }
                     if d.key == "host" || d.key == "match" { scope = d.key.capitalized + " " + d.arguments.joined(separator: " ") }
@@ -71,7 +71,7 @@ public struct IncludeGraph {
                                 visit(child, ancestry: ancestry.union([canonical]), id: "\(key)/\(n)")
                             }
                             children.append(IncludeNode(id: key, title: pattern,
-                                note: "行 \(line + 1) · \(scope)" + (urls.isEmpty ? " · 一致なし" : ""),
+                                note: "Line \(line + 1) · \(scope)" + (urls.isEmpty ? " · No matches" : ""),
                                 children: descendants.isEmpty ? nil : descendants))
                         } catch {
                             children.append(IncludeNode(id: key, title: pattern, note: error.localizedDescription))

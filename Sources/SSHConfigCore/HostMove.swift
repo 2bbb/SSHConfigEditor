@@ -8,7 +8,7 @@ public struct HostMoveResult: Sendable {
     public init(source: String, blockID: Int, destination: String, beforeBlockID: Int? = nil) throws {
         let sourceDoc = ConfigDocument(source), destinationDoc = ConfigDocument(destination)
         guard let block = sourceDoc.blocks.first(where: { $0.id == blockID }), block.kind == "host" else {
-            throw ConfigError("移動できるのはHostブロックです。")
+            throw ConfigError("Only Host blocks can be moved.")
         }
         var sourceRows = sourceDoc.lines
         var start = block.start, end = block.end
@@ -28,7 +28,7 @@ public struct HostMoveResult: Sendable {
         let insertionLine: Int
         if let beforeBlockID {
             guard let target = destinationDoc.blocks.first(where: { $0.id == beforeBlockID }), target.kind != "global" else {
-                throw ConfigError("挿入位置が変わりました。もう一度ドラッグしてください。")
+                throw ConfigError("The insertion point has changed. Drag the Host again.")
             }
             let rows = destinationDoc.lines
             var position = target.start

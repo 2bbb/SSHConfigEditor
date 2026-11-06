@@ -75,7 +75,7 @@ public struct ConfigDocument: Sendable {
     public var newline: String { text.contains("\r\n") ? "\r\n" : "\n" }
     public var blocks: [SourceBlock] {
         let rows = lines
-        var starts: [(Int, String, String)] = [(0, "global", "ファイル先頭")]
+        var starts: [(Int, String, String)] = [(0, "global", "Global settings")]
         for (i, line) in rows.enumerated() {
             guard let d = Directive.parse(line), d.key == "host" || d.key == "match" else { continue }
             if i == 0 { starts.removeAll() }
@@ -108,11 +108,11 @@ public struct ConfigDocument: Sendable {
     }
     public mutating func setValue(_ key: String, value: String, blockID: Int) throws {
         guard !value.contains("\n"), !value.contains("\r"), !value.contains("\0") else {
-            throw ConfigError("フォームには1行の値を入力してください。")
+            throw ConfigError("Enter a single-line value in the form.")
         }
         guard let block = blocks.first(where: { $0.id == blockID }) else { return }
         let hits = occurrences(key, in: block)
-        guard hits.count <= 1 else { throw ConfigError("\(key) は複数あります。原文で編集してください。") }
+        guard hits.count <= 1 else { throw ConfigError("\(key) appears more than once. Edit it in Source.") }
         var rows = lines
         if let row = hits.first, let d = Directive.parse(rows[row]) {
             if value.trimmingCharacters(in: .whitespaces).isEmpty && !["host", "match"].contains(key.lowercased()) {
@@ -142,10 +142,10 @@ public struct ConfigDocument: Sendable {
     public var diagnostics: [String] {
         lines.enumerated().compactMap { index, line in
             guard let d = Directive.parse(line) else { return nil }
-            if d.malformed { return "行 \(index + 1): 引用符が閉じられていません。" }
-            if d.arguments.isEmpty { return "行 \(index + 1): \(d.key) に値がありません。" }
+            if d.malformed { return "Line \(index + 1): Unclosed quotation mark." }
+            if d.arguments.isEmpty { return "Line \(index + 1): Missing value for \(d.key)." }
             if d.key == "port", d.arguments.count != 1 || Int(d.arguments[0]).map({ !(1...65535).contains($0) }) ?? true {
-                return "行 \(index + 1): Port は1〜65535で指定してください。"
+                return "Line \(index + 1): Port must be between 1 and 65535."
             }
             return nil
         }
