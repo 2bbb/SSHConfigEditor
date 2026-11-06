@@ -1,0 +1,11 @@
+# Sample configuration — no connection is made by the editor.
+Include conf.d/*.conf
+
+Host bastion
+    HostName bastion.example.com
+    User ops
+    IdentityFile ~/.ssh/id_ed25519
+
+Host *
+    ServerAliveInterval 30
+    ForwardAgent no
