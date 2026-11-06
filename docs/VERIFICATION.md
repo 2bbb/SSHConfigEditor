@@ -44,4 +44,8 @@ UTTypeをInfo.plistに登録し、ドラッグ開始元を永続的なウイン�
 
 ホバーの待機・挿入・キャンセルは状態テストで検証。GUI自動操作は継続的なマウス保持を指定できないため、長時間ホバーから任意位置への一連の操作の完全な自動再現には限界がある。
 
-全OpenSSH構文の検証、通信、他のMacへの配布・公証は未実施。複数ファイルの書き換えをまたぐ原子性はない。
+全OpenSSH構文の検証、通信、公証は未実施。複数ファイルの書き換えをまたぐ原子性はない。
+
+## v0.0.1 配布検証
+
+2026-11-06、20テスト成功。Universal (arm64 / x86_64) ReleaseビルドとDeveloper ID署名、Hardened Runtime・secure timestamp、ZIP展開後の署名・Team ID・version・両architectureを検証。公証はユーザー指定で今回の対象外。Intel実機とmacOS 14実機での確認は未実施。公開用CIとダウンロード後の確認方法は `RELEASE.md` に記載。

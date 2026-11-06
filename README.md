@@ -4,6 +4,10 @@
 
 ## 起動
 
+[正式リリース](https://github.com/2bbb/SSHConfigEditor/releases/latest) / [mainの最新版](https://github.com/2bbb/SSHConfigEditor/releases/tag/latest)からZIPをダウンロードし、展開したアプリをApplicationsへ移動する。macOS 14以降、Apple Silicon / Intel対応。Developer ID署名済み、**未公証**。初回起動がブロックされた場合は、入手元を確認してシステム設定 → プライバシーとセキュリティの「このまま開く」で許可する。
+
+## ローカルビルド
+
 `artifacts/SSHConfigEditor.app` をダブルクリック。標準では `~/.ssh/config` を開く。アプリを開くだけでは設定を変更しない。
 
 ```sh
@@ -11,7 +15,9 @@ bash scripts/build.sh
 open artifacts/SSHConfigEditor.app
 ```
 
-Xcode/Swift 6対応ツールチェーンが必要。ビルドしたMacのアーキテクチャ用に生成する。既定はローカル利用用のad-hoc署名。Developer IDで署名する場合は `SIGNING_IDENTITY` を指定する。公証・他のMac向け配布は未実施。
+Xcode/Swift 6対応ツールチェーンが必要。ビルドしたMacのアーキテクチャ用に生成する。`UNIVERSAL=1` で両アーキテクチャを生成。既定はローカル利用用のad-hoc署名。Developer IDで署名する場合は `SIGNING_IDENTITY` を指定する。
+
+CI・バージョン更新・ZIPの検証方法は [配布手順](docs/RELEASE.md) を参照。
 
 ## 操作
 
