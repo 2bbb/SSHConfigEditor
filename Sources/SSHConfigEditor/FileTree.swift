@@ -37,7 +37,7 @@ struct FileTreeRow: View {
             FileRow(file: file, canRename: workspace.dirtyFiles.isEmpty) { workspace.renameTarget = file }
                 .tag(file.id)
                 .listRowBackground(workspace.hoveredFileID == file.id ? Color.accentColor.opacity(0.22) : Color.clear)
-                .onDrop(of: [HostDrag.type], delegate: FileHostDrop(workspace: workspace, file: file))
+                .overlay { NativeHostDropTarget(workspace: workspace, file: file, springLoads: true) }
         } else {
             DisclosureGroup(isExpanded: Binding(get: { !workspace.collapsedFolders.contains(node.id) }, set: { expanded in
                 if expanded { workspace.collapsedFolders.remove(node.id) } else { workspace.collapsedFolders.insert(node.id) }

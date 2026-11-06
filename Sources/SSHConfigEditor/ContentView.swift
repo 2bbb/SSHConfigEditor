@@ -266,12 +266,12 @@ private struct BlockFields: View {
         let duplicate = file.parsed.occurrences(key, in: block).count > 1
         return VStack(alignment: .leading, spacing: 6) {
             HStack { Text(title).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary); if duplicate { Text("複数行あり — 原文で編集").font(.caption).foregroundStyle(.orange) } }
-            TextField("未指定", text: Binding(get: { file.parsed.value(key, in: block) }, set: { workspace.set(key, value: $0, blockID: block.id) }))
+            TextField("未指定", text: Binding(get: { file.parsed.value(key, in: block) }, set: { workspace.set(key, value: $0, blockID: block.id, file: file) }))
                 .textFieldStyle(.roundedBorder).font(.system(.body, design: .monospaced)).disabled(duplicate)
         }
     }
     private var sourceExcerpt: some View {
-        Text(file.parsed.lines[block.start..<min(block.end, file.parsed.lines.count)].joined(separator: "\n"))
+        Text(file.parsed.source(in: block))
             .font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading).padding(14)
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))

@@ -33,6 +33,13 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(doc.value("User", in: doc.blocks[1]), "bob")
         XCTAssertFalse(doc.diagnostics.isEmpty)
     }
+    func testOutgoingBlockCanRenderAfterItsSourceWasShortenedByMove() {
+        let before = ConfigDocument("Host first\n User alice\n\nHost second\n HostName second.example\n")
+        let outgoing = before.blocks[1]
+        let after = ConfigDocument("")
+        XCTAssertEqual(after.value("HostName", in: outgoing), "")
+        XCTAssertEqual(after.source(in: outgoing), "")
+    }
 
     func testLexerQuotesCommentsEqualsAndMatchBoundaries() {
         let directive = Directive.parse("  Include = \"conf.d/with space.conf\" conf.d/*.conf # comment")!

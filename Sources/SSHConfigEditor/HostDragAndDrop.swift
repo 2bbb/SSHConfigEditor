@@ -26,7 +26,7 @@ struct HostDragSource: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView(workspace: workspace, file: file, block: block) }
     func updateNSView(_ view: DragView, context: Context) { view.file = file; view.block = block }
 
-    @MainActor final class DragView: NSView, NSDraggingSource {
+    @MainActor final class DragView: NSView {
         let workspace: Workspace
         var file: EditableFile
         var block: SourceBlock
@@ -50,44 +50,119 @@ struct HostDragSource: NSViewRepresentable {
             guard let point = downPoint, hypot(event.locationInWindow.x - point.x, event.locationInWindow.y - point.y) > 4 else { return }
             downPoint = nil
             let token = workspace.beginDrag(file: file, block: block)
-            workspace.nativeDragSource = self
+            let coordinator = HostDragCoordinator(workspace: workspace)
+            workspace.nativeDragSource = coordinator
             let item = NSPasteboardItem()
             item.setString(token, forType: NSPasteboard.PasteboardType(HostDrag.type.identifier))
             let dragging = NSDraggingItem(pasteboardWriter: item)
+            let title = block.title
             let image = NSImage(size: NSSize(width: 240, height: 36), flipped: false) { rect in
                 NSColor.controlBackgroundColor.withAlphaComponent(0.95).setFill()
                 NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).fill()
-                ("Host " + self.block.title as NSString).draw(at: NSPoint(x: 12, y: 10), withAttributes: [
+                ("Host " + title as NSString).draw(at: NSPoint(x: 12, y: 10), withAttributes: [
                     .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium), .foregroundColor: NSColor.labelColor
                 ])
                 return true
             }
-            dragging.setDraggingFrame(NSRect(x: 0, y: 0, width: 240, height: 36), contents: image)
+            // The source row disappears on spring loading. Start the session from
+            // the persistent window surface so AppKit does not cancel it on removal.
+            let surface = workspace.dragSurface ?? self
+            let imagePoint = surface.convert(event.locationInWindow, from: nil)
+            dragging.setDraggingFrame(NSRect(x: imagePoint.x - 20, y: imagePoint.y - 18, width: 240, height: 36), contents: image)
             HostDrag.log.notice("Starting native Host drag")
-            beginDraggingSession(with: [dragging], event: event, source: self)
+            surface.beginDraggingSession(with: [dragging], event: event, source: coordinator)
             HostDrag.log.notice("Native Host drag session created")
         }
-        func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-            context == .withinApplication ? .move : []
-        }
-        func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-            HostDrag.log.notice("Native Host drag ended; operation=\(operation.rawValue)")
-            workspace.endDrag()
-        }
-        func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
     }
 }
 
-struct FileHostDrop: DropDelegate {
+@MainActor final class HostDragCoordinator: NSObject, NSDraggingSource {
+    let workspace: Workspace
+    init(workspace: Workspace) { self.workspace = workspace }
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .withinApplication ? .move : []
+    }
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        HostDrag.log.notice("Native Host drag ended; operation=\(operation.rawValue)")
+        workspace.endDrag()
+        // AppKit may still use the source while unwinding the end callback.
+        DispatchQueue.main.async { [self] in
+            if workspace.nativeDragSource === self { workspace.nativeDragSource = nil }
+        }
+    }
+    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
+}
+
+struct NativeHostDropTarget: NSViewRepresentable {
     let workspace: Workspace
     let file: EditableFile
-    func validateDrop(info: DropInfo) -> Bool {
-        workspace.dragSession.map { $0.sourceID != file.id } == true && info.hasItemsConforming(to: [HostDrag.type])
+    var beforeBlockID: Int? = nil
+    var springLoads = false
+    var highlight: (Bool) -> Void = { _ in }
+    func makeNSView(context: Context) -> DestinationView { DestinationView() }
+    func updateNSView(_ view: DestinationView, context: Context) {
+        view.workspace = workspace; view.file = file; view.beforeBlockID = beforeBlockID
+        view.springLoads = springLoads; view.highlight = highlight
     }
-    func dropEntered(info: DropInfo) { HostDrag.log.notice("File drop entered"); workspace.hoverFile(file) }
-    func dropExited(info: DropInfo) { workspace.leaveFile(file) }
-    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: validateDrop(info: info) ? .move : .forbidden) }
-    func performDrop(info: DropInfo) -> Bool { HostDrag.log.notice("File drop committed"); return workspace.moveDraggedHost(to: file) }
+
+    @MainActor final class DestinationView: NSView {
+        var workspace: Workspace?
+        var file: EditableFile?
+        var beforeBlockID: Int?
+        var springLoads = false
+        var highlight: (Bool) -> Void = { _ in }
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            registerForDraggedTypes([NSPasteboard.PasteboardType(HostDrag.type.identifier)])
+            setAccessibilityElement(false)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func mouseDown(with event: NSEvent) {
+            if springLoads, let file { workspace?.select(path: file.snapshot.url.path) }
+        }
+        private func accepts(_ sender: NSDraggingInfo) -> Bool {
+            guard let drag = workspace?.dragSession, let file, drag.sourceID != file.id else { return false }
+            return sender.draggingPasteboard.string(forType: NSPasteboard.PasteboardType(HostDrag.type.identifier)) == drag.token
+        }
+        override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+            guard accepts(sender), let file else { return [] }
+            HostDrag.log.notice("Native destination entered")
+            highlight(true)
+            if springLoads { workspace?.hoverFile(file) }
+            return .move
+        }
+        override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { accepts(sender) ? .move : [] }
+        override func draggingExited(_ sender: NSDraggingInfo?) {
+            highlight(false)
+            if springLoads, let file { workspace?.leaveFile(file) }
+        }
+        override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { accepts(sender) }
+        override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+            guard accepts(sender), let file else { return false }
+            HostDrag.log.notice("Native destination committed; insertion=\(self.beforeBlockID != nil)")
+            highlight(false)
+            return workspace?.moveDraggedHost(to: file, before: beforeBlockID) ?? false
+        }
+        override func menu(for event: NSEvent) -> NSMenu? {
+            guard springLoads, let file, let workspace else { return nil }
+            workspace.select(path: file.snapshot.url.path)
+            let menu = NSMenu()
+            let rename = menu.addItem(withTitle: "名前を変更…", action: #selector(renameFile), keyEquivalent: "")
+            rename.target = self; rename.isEnabled = workspace.dirtyFiles.isEmpty && file.snapshot.original != nil
+            let reveal = menu.addItem(withTitle: "Finderで表示", action: #selector(revealFile), keyEquivalent: "")
+            reveal.target = self
+            let copy = menu.addItem(withTitle: "パスをコピー", action: #selector(copyPath), keyEquivalent: "")
+            copy.target = self
+            menu.autoenablesItems = false
+            return menu
+        }
+        @objc private func renameFile() { workspace?.renameTarget = file }
+        @objc private func revealFile() { if let file { NSWorkspace.shared.activateFileViewerSelecting([file.snapshot.url]) } }
+        @objc private func copyPath() {
+            if let file { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(file.snapshot.url.path, forType: .string) }
+        }
+    }
 }
 
 struct HostInsertionSlot: View {
@@ -105,8 +180,9 @@ struct HostInsertionSlot: View {
         .foregroundStyle(targeted ? Color.accentColor : Color.secondary.opacity(0.65))
         .padding(.vertical, 10)
         .contentShape(Rectangle())
-        .onDrop(of: [HostDrag.type], isTargeted: $targeted) { _ in
-            workspace.moveDraggedHost(to: file, before: beforeBlockID)
+        .overlay {
+            NativeHostDropTarget(workspace: workspace, file: file, beforeBlockID: beforeBlockID,
+                                 highlight: { targeted = $0 })
         }
         .accessibilityLabel(beforeBlockID == nil ? "ファイル末尾へ移動" : "このブロックの前へ移動")
     }

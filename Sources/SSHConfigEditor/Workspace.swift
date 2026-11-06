@@ -39,6 +39,7 @@ final class Workspace {
     var collapsedFolders: Set<String> = []
     @ObservationIgnored private var springTask: Task<Void, Never>?
     @ObservationIgnored var nativeDragSource: AnyObject?
+    @ObservationIgnored weak var dragSurface: NSView?
     let backupRoot: URL
 
     init(root: URL? = nil, includeBase: URL? = nil, backups: URL? = nil) {
@@ -127,8 +128,7 @@ final class Workspace {
             }
         }
     }
-    func set(_ key: String, value: String, blockID: Int) {
-        guard let file = selected else { return }
+    func set(_ key: String, value: String, blockID: Int, file: EditableFile) {
         do {
             var parsed = file.parsed
             try parsed.setValue(key, value: value, blockID: blockID)
@@ -166,7 +166,6 @@ final class Workspace {
     func endDrag() {
         springTask?.cancel(); springTask = nil
         dragSession = nil; hoveredFileID = nil; springFileID = nil
-        nativeDragSource = nil
     }
     @discardableResult func moveDraggedHost(to destination: EditableFile, before blockID: Int? = nil) -> Bool {
         guard let drag = dragSession, let source = files.first(where: { $0.id == drag.sourceID }), source.id != destination.id else { return false }

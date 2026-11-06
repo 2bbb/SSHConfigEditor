@@ -89,9 +89,18 @@ public struct ConfigDocument: Sendable {
     }
     public func occurrences(_ key: String, in block: SourceBlock) -> [Int] {
         let rows = lines
-        return (block.start..<min(block.end, rows.count)).filter {
+        let end = min(block.end, rows.count)
+        // SwiftUI may render an outgoing row once after a cross-file move has
+        // shortened its document. Never subscript using a stale block range.
+        guard block.start >= 0, block.start < end else { return [] }
+        return (block.start..<end).filter {
             Directive.parse(rows[$0])?.key == key.lowercased()
         }
+    }
+    public func source(in block: SourceBlock) -> String {
+        let rows = lines, end = min(block.end, lines.count)
+        guard block.start >= 0, block.start < end else { return "" }
+        return rows[block.start..<end].joined(separator: "\n")
     }
     public func value(_ key: String, in block: SourceBlock) -> String {
         guard let row = occurrences(key, in: block).first, let d = Directive.parse(lines[row]) else { return "" }

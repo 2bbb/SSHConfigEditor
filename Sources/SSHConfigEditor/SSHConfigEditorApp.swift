@@ -51,7 +51,10 @@ struct WindowGuard: NSViewRepresentable {
     func updateNSView(_ nsView: GuardView, context: Context) {}
     @MainActor final class GuardView: NSView, NSWindowDelegate {
         var workspace: Workspace?
-        override func viewDidMoveToWindow() { window?.delegate = self }
+        override func viewDidMoveToWindow() {
+            window?.delegate = self
+            if window != nil { workspace?.dragSurface = self }
+        }
         func windowShouldClose(_ sender: NSWindow) -> Bool { workspace?.confirmDiscard() ?? true }
     }
 }
